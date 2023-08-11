@@ -32,7 +32,7 @@ contract EntregaDePremios is Ownable{
     }
 
     function reclamarPremio(uint256 indice) public {
-        require(indice < premios[msg.sender].length, "Índice de premio inválido");
+        require(indice < premios[msg.sender].length, "Indice de premio invalido");
         Premio storage premio = premios[msg.sender][indice];
         require(premio.cantidad > 0, "No tienes un premio asignado");
         require(!premio.reclamado, "Ya has reclamado tu premio");
@@ -42,5 +42,9 @@ contract EntregaDePremios is Ownable{
 
         premio.reclamado = true;
         require(IERC20(premio.token).transfer(msg.sender, premio.cantidad), "La transferencia fallo");
+    }
+
+        function obtenerPremios(address ganador) public view returns (Premio[] memory) {
+        return premios[ganador];
     }
 }
