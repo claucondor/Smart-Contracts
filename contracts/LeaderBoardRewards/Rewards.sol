@@ -16,14 +16,29 @@ contract EntregaDePremios is Ownable {
         address token,
         uint256 cantidad
     );
+    event PremioReclamado(
+        address indexed ganador,
+        address token,
+        uint256 cantidad
+    );
+    event DepositoRealizado(address indexed token, uint256 cantidad);
 
     mapping(address => Premio[]) private premios;
+
+    uint256 public tiempoEspera = 1 days;
+
+    mapping(address => uint256) private ultimoPremioAsignado;
+
+    uint256 public tiempoEsperaReclamo = 1 hours;
+
+    mapping(address => uint256) private ultimoReclamo;
 
     function depositar(address token, uint256 cantidad) public onlyOwner {
         require(
             IERC20(token).transferFrom(msg.sender, address(this), cantidad),
             "La transferencia fallo"
         );
+        emit DepositoRealizado(token, cantidad);
     }
 
     function asignarPremio(
@@ -31,11 +46,18 @@ contract EntregaDePremios is Ownable {
         address token,
         uint256 cantidad
     ) public onlyOwner {
+        require(
+            block.timestamp >= ultimoPremioAsignado[ganador] + tiempoEspera,
+            "Debe esperar mas tiempo antes de asignar otro premio a este ganador"
+        );
+
         uint256 balance = IERC20(token).balanceOf(address(this));
         require(
             balance >= cantidad,
             "No hay suficientes fondos para cubrir el premio"
         );
+
+        ultimoPremioAsignado[ganador] = block.timestamp;
 
         premios[ganador].push(Premio(token, cantidad, false));
 
@@ -43,6 +65,11 @@ contract EntregaDePremios is Ownable {
     }
 
     function reclamarPremio() public {
+        require(
+            block.timestamp >= ultimoReclamo[msg.sender] + tiempoEsperaReclamo,
+            "Debe esperar mas tiempo antes de reclamar otro premio"
+        );
+
         uint256 totalPremios = premios[msg.sender].length;
         require(totalPremios > 0, "No tienes premios asignados");
 
@@ -62,7 +89,9 @@ contract EntregaDePremios is Ownable {
                 IERC20(premio.token).transfer(msg.sender, premio.cantidad),
                 "La transferencia fallo"
             );
+            emit PremioReclamado(msg.sender, premio.token, premio.cantidad);
         }
+        ultimoReclamo[msg.sender] = block.timestamp;
     }
 
     function obtenerPremios(
